@@ -7,6 +7,14 @@ var hbs = exphbs.create({
   extname: '.hbs'
 });
 
+var fortunes = [
+  'Победи свои страхи, или они победят тебя.',
+  'Рекам нужны истоки.',
+  'Не бойся неведомого.',
+  'Тебя ждет приятный сюрприз.',
+  'Будь проще везде, где только можно.'
+];
+
 app.engine('.hbs', hbs.engine);
 app.set('view engine', '.hbs');
 
@@ -19,7 +27,9 @@ app.get('/', function(req, res){
 })
 
 app.get('/about', function(req, res){
-  res.render('about');
+  var randomFortune =
+    fortunes[Math.floor(Math.random() * fortunes.length)];
+  res.render('about', { fortune: randomFortune });
 })
 
 app.use(function(req, res){
