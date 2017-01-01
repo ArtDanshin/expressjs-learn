@@ -23,6 +23,8 @@
   },
   "devDependencies": {
     "chai": "^3.5.0",
+    "grunt": "^1.0.1",
+    "grunt-cafe-mocha": "^0.1.13",
     "mocha": "^3.2.0",
     "zombie": "^5.0.5"
   }
