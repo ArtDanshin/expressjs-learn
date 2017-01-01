@@ -1,4 +1,15 @@
-<h1>Тур по реке Худ</h1>
-<a class='requestGroupRate' href='/tours/request-group-rate'>
-  Запрос цены для групп
-</a>
+<h1>Запрос цены для групп</h1>
+<form>
+  <input type='hidden' name='referrer'>
+  Название: <input type='text' id='fieldName' name='name'><br>
+  Размер группы: <input type='text' name='groupSize'><br>
+  Электронная почта: <input type="email" name='email'><br>
+  <input type='submit' value='Submit'>
+</form>
+<!--{{#section 'jquery'}}-->
+<!--{{/section}}-->
+<script>
+  $(document).ready(function() {
+    $('input[name="referrer"]').val(document.referrer);
+  });
+</script>

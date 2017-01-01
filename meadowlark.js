@@ -5,7 +5,14 @@ var fortune = require('./lib/fortune.js');
 var app = express();
 var hbs = exphbs.create({
   defaultLayout: 'main',
-  extname: '.hbs'
+  extname: '.hbs',
+  helpers: {
+    section: function(name, options){
+      if (!this._sections) this._sections = {};
+      this._sections[name] = options.fn(this);
+      return null;
+    }
+  }
 });
 
 app.engine('.hbs', hbs.engine);
@@ -33,6 +40,10 @@ app.get('/about', function(req, res){
 
 app.get('/tours/hood-river', function(req, res){
   res.render('tours/hood-river');
+});
+
+app.get('/tours/oregon-coast', function(req, res){
+  res.render('tours/oregon-coast');
 });
 
 app.get('/tours/request-group-rate', function(req, res){
