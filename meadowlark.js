@@ -1,6 +1,7 @@
 var express = require('express');
 var exphbs = require('express-handlebars');
 var fortune = require('./lib/fortune.js');
+var weather = require('./lib/weather.js');
 
 var app = express();
 var hbs = exphbs.create({
@@ -24,6 +25,12 @@ app.use(function(req, res, next) {
   res.locals.showTests = app.get('env') !== 'production' && req.query.test === '1';
   next();
 });
+
+app.use(function(req, res, next){
+  if (!res.locals.partials) res.locals.partials = {};
+  res.locals.partials.weatherContext = weather.getWeatherData();
+  next();
+})
 
 app.use(express.static(__dirname + '/public'));
 
