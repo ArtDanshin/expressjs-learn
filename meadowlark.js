@@ -1,6 +1,7 @@
 var express = require('express');
 var exphbs = require('express-handlebars');
 var bodyParser = require('body-parser');
+var formidable = require('formidable');
 var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
 
@@ -40,6 +41,24 @@ app.use(express.static(__dirname + '/public'));
 app.get('/', function(req, res){
   res.render('home');
 });
+
+app.get('/contest/vacation-photo', function(req, res){
+  var now = new Date();
+  res.render('contest/vacation-photo', {
+    year: now.getFullYear(),
+    month: now.getMonth()
+  })
+});
+
+app.post('/contest/vacation-photo/:year/:month', function(req, res){
+  var form = new formidable.IncomingForm();
+  form.parse(req, function(err, fields, files){
+    if (err) return res.redirect(303, '/error');
+    console.log('received fields: ' + fields);
+    console.log('received files: ' + files);
+    res.redirect(303, '/thank-you');
+  })
+})
 
 app.get('/newsletter', function(req, res){
   res.render('newsletter', { csrf: 'CSRF token goes here' });
