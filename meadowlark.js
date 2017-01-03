@@ -3,6 +3,8 @@ var exphbs = require('express-handlebars');
 var bodyParser = require('body-parser');
 var formidable = require('formidable');
 var cookieParser = require('cookie-parser');
+var morgan = require('morgan');
+var explogger = require('express-logger');
 var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
 var credentials = require('./config/credentials.js');
@@ -24,6 +26,17 @@ app.engine('.hbs', hbs.engine);
 app.set('view engine', '.hbs');
 
 app.set('port', process.env.PORT || 3000);
+
+switch (app.get('env')){
+  case 'development':
+    app.use(morgan('dev'));
+    break;
+  case 'production':
+    app.use(explogger({
+      path: __dirname + '/log/requests.log'
+    }))
+    break;
+}
 
 app.use(function(req, res, next) {
   res.locals.showTests = app.get('env') !== 'production' && req.query.test === '1';
