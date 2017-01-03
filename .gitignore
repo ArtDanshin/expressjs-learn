@@ -38,3 +38,6 @@ jspm_packages
 
 #IDEA folder
 .idea
+
+#Private Config
+config/credentials.js

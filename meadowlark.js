@@ -2,8 +2,10 @@ var express = require('express');
 var exphbs = require('express-handlebars');
 var bodyParser = require('body-parser');
 var formidable = require('formidable');
+var cookieParser = require('cookie-parser');
 var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
+var credentials = require('./config/credentials.js');
 
 var app = express();
 var hbs = exphbs.create({
@@ -35,6 +37,8 @@ app.use(function(req, res, next){
 });
 
 app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(cookieParser(credentials.cookieSecret));
 
 app.use(express.static(__dirname + '/public'));
 
