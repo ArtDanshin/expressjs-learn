@@ -12,6 +12,7 @@ var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
 var credentials = require('./config/credentials.js');
 var Vacation = require('./models/vacations.js');
+var VacationInSeasonListener = require('./models/vacationInSeasonListener');
 
 var app = express();
 var hbs = exphbs.create({
@@ -189,6 +190,37 @@ app.get('/vacations', function(req, res){
     };
     res.render('vacations', context);
   })
+});
+
+app.get('/notify-me-when-in-season', function(req, res){
+  res.render('notify-me-when-in-season', { sku: req.query.sku });
+});
+
+app.post('/notify-me-when-in-season', function(req, res){
+  VacationInSeasonListener.update(
+    { email: req.body.email },
+    { $push: { skus: req.body.sku } },
+    { upsert: true },
+    function(err){
+      if(err) {
+        console.error(err.stack);
+        req.session.flash = {
+          type: 'danger',
+          intro: 'Упс!',
+          message: 'При обработке вашего запроса ' +
+          'произошла ошибка.',
+        };
+        return res.redirect(303, '/vacations');
+      }
+      req.session.flash = {
+        type: 'success',
+        intro: 'Спасибо!',
+        message: 'Вы будете оповещены, когда наступит ' +
+        'сезон для этого тура.',
+      };
+      return res.redirect(303, '/vacations');
+    }
+  )
 })
 
 app.get('/newsletter', function(req, res){
