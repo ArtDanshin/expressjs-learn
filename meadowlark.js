@@ -8,11 +8,10 @@ var explogger = require('express-logger');
 var expsession = require('express-session');
 var fs = require('fs');
 var mongoose = require('mongoose');
+var MongoSessionStore = require('session-mongoose')(require('connect'));
 var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
 var credentials = require('./config/credentials.js');
-var Vacation = require('./models/vacations.js');
-var VacationInSeasonListener = require('./models/vacationInSeasonListener');
 
 var app = express();
 var hbs = exphbs.create({
@@ -51,61 +50,6 @@ switch (app.get('env')){
     break;
 }
 
-Vacation.find(function(err, vacations){
-  if (err) return console.error(err);
-
-  if (vacations.length) return;
-
-  new Vacation({
-    name: 'Однодневный тур по реке Худ',
-    slug: 'hood-river-day-trip',
-    category: 'Однодневный тур',
-    sku: 'HR199',
-    description: 'Проведите день в плавании по реке Колумбия ' +
-    'и насладитесь сваренным по традиционным рецептам ' +
-      'пивом на реке Худ!',
-    priceInCents: 9995,
-    tags: ['однодневный тур', 'река худ', 'плавание', 'виндсерфинг', 'пивоварни'],
-    inSeason: true,
-    maximumGuests: 16,
-    available: true,
-    packagesSold: 0
-  }).save();
-
-  new Vacation({
-    name: 'Отдых в Орегон Коуст',
-    slug: 'oregon-coast-getaway',
-    category: 'Отдых на выходных',
-    sku: 'OC39',
-    description: 'Насладитесь океанским воздухом ' +
-    'и причудливыми прибрежными городками!',
-    priceInCents: 269995,
-    tags: ['отдых на выходных', 'орегон коуст',
-      'прогулки по пляжу'],
-    inSeason: false,
-    maximumGuests: 8,
-    available: true,
-    packagesSold: 0,
-  }).save();
-  new Vacation({
-    name: 'Скалолазание в Бенде',
-    slug: 'rock-climbing-in-bend',
-    category: 'Приключение',
-    sku: 'B99',
-    description: 'Пощекочите себе нервы горным восхождением ' +
-    'на пустынной возвышенности.',
-    priceInCents: 289995,
-    tags: ['отдых на выходных', 'бенд', 'пустынная возвышенность', 'скалолазание'],
-    inSeason: true,
-    requiresWaiver: true,
-    maximumGuests: 4,
-    available: false,
-    packagesSold: 0,
-    notes: 'Гид по данному туру в настоящий момент ' +
-    'восстанавливается после лыжной травмы.',
-  }).save();
-});
-
 app.use(function(req, res, next) {
   res.locals.showTests = app.get('env') !== 'production' && req.query.test === '1';
   next();
@@ -117,142 +61,23 @@ app.use(function(req, res, next){
   next();
 });
 
+var sessionStore = new MongoSessionStore({
+  url: credentials.mongo[app.get('env')].connectionString
+});
+
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(cookieParser(credentials.cookieSecret));
 app.use(expsession({
   resave: false,
   saveUninitialized: false,
-  secret: credentials.cookieSecret
+  secret: credentials.cookieSecret,
+  store: sessionStore
 }));
 
 app.use(express.static(__dirname + '/public'));
 
-app.get('/', function(req, res){
-  res.render('home');
-});
-
-app.get('/contest/vacation-photo', function(req, res){
-  var now = new Date();
-  res.render('contest/vacation-photo', {
-    year: now.getFullYear(),
-    month: now.getMonth()
-  })
-});
-
-var dataDir = __dirname + '/data';
-var vacationPhotoDir = dataDir + '/vacation-photo';
-fs.existsSync(dataDir) || fs.mkdirSync(dataDir);
-fs.existsSync(vacationPhotoDir) || fs.mkdirSync(vacationPhotoDir);
-
-function saveContestEntry(contestName, email, year, month, photoPath){
-  //TODO... Это будет добавленно позднее
-}
-
-app.post('/contest/vacation-photo/:year/:month', function(req, res){
-  var form = new formidable.IncomingForm();
-  form.parse(req, function(err, fields, files){
-    if (err) {
-      res.session.flash = {
-        type: 'danger',
-        intro: 'Упс!',
-        message: 'Во время обработки отправленной Вами формы произошла ошибка. Пожалуйста попробуйте еще раз.'
-      };
-      return res.redirect(303, '/contest/vacation-photo');
-    }
-    var photo = files.photo;
-    var dir = vacationPhotoDir + '/' + photo.name;
-    var path = dir + '/' + photo.name;
-    fs.mkdirSync(dir);
-    fs.renameSync(photo.path, dir + '/' + photo.name);
-    saveContestEntry('vacation-photo', fields.email, req.params.years, req.params.nonth, path);
-    req.session.flash = {
-      type: 'success',
-      intro: 'Удачи!',
-      message: 'Вы стали участником конкурса'
-    }
-    res.redirect(303, '/contest/vacation-photo/entries');
-  })
-});
-
-app.get('/vacations', function(req, res){
-  Vacation.find({ available: true }, function(err, vacations){
-    var context = {
-      vacations: vacations.map(function(vacation){
-        return {
-          vacations: vacations.sku,
-          name: vacation.name,
-          description: vacation.description,
-          price: vacation.getDisplayPrice(),
-          inSeason: vacation.inSeason
-        }
-      })
-    };
-    res.render('vacations', context);
-  })
-});
-
-app.get('/notify-me-when-in-season', function(req, res){
-  res.render('notify-me-when-in-season', { sku: req.query.sku });
-});
-
-app.post('/notify-me-when-in-season', function(req, res){
-  VacationInSeasonListener.update(
-    { email: req.body.email },
-    { $push: { skus: req.body.sku } },
-    { upsert: true },
-    function(err){
-      if(err) {
-        console.error(err.stack);
-        req.session.flash = {
-          type: 'danger',
-          intro: 'Упс!',
-          message: 'При обработке вашего запроса ' +
-          'произошла ошибка.',
-        };
-        return res.redirect(303, '/vacations');
-      }
-      req.session.flash = {
-        type: 'success',
-        intro: 'Спасибо!',
-        message: 'Вы будете оповещены, когда наступит ' +
-        'сезон для этого тура.',
-      };
-      return res.redirect(303, '/vacations');
-    }
-  )
-})
-
-app.get('/newsletter', function(req, res){
-  res.render('newsletter', { csrf: 'CSRF token goes here' });
-});
-
-app.post('/process', function(req, res){
-  if (req.xhr || req.accepts('json.html') === 'json') {
-    res.send({success: true});
-  } else {
-    res.redirect(303, '/thank-you' );
-  }
-});
-
-app.get('/about', function(req, res){
-  res.render('about', {
-    fortune: fortune.getFortune(),
-    pageTestScript: '/qa/tests-about.js'
-  });
-});
-
-app.get('/tours/hood-river', function(req, res){
-  res.render('tours/hood-river');
-});
-
-app.get('/tours/oregon-coast', function(req, res){
-  res.render('tours/oregon-coast');
-});
-
-app.get('/tours/request-group-rate', function(req, res){
-  res.render('tours/request-group-rate');
-});
+require('./routes.js')(app);
 
 app.use(function(req, res){
   res.status(404);
